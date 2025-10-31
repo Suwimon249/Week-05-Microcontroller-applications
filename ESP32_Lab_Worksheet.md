@@ -390,24 +390,27 @@ Memory analysis complete!
 
 | Memory Section | Variable/Function | Address (ที่แสดงออกมา) | Memory Type |
 |----------------|-------------------|----------------------|-------------|
-| Stack | stack_var | 0x_______ | SRAM |
-| Global SRAM | sram_buffer | 0x_______ | SRAM |
-| Flash | flash_string | 0x_______ | Flash |
-| Heap | heap_ptr | 0x_______ | SRAM |
+| Stack | stack_var | 0x3ffb4570 | SRAM |
+| Global SRAM | sram_buffer | 0x3ffb16cc | SRAM |
+| Flash | flash_string | 0x3f407688 | Flash |
+| Heap | heap_ptr | 0x3ffb528c | SRAM |
 
 **Table 2.2: Memory Usage Summary**
 
 | Memory Type | Free Size (bytes) | Total Size (bytes) |
 |-------------|-------------------|--------------------|
-| Internal SRAM | _________ | 520,192 |
-| Flash Memory | _________ | varies |
-| DMA Memory | _________ | varies |
+| Internal SRAM | 	388884 bytes | 520,192 |
+| Flash Memory | 	0 bytes | varies |
+| DMA Memory | 303024 bytes | varies |
 
 ### คำถามวิเคราะห์ (ง่าย)
 
 1. **Memory Types**: SRAM และ Flash Memory ใช้เก็บข้อมูลประเภทไหน?
+   = SRAM เก็บข้อมูลชั่วคราว , Flash Memory เก็บโปรแกรมและข้อมูลถาวร
 2. **Address Ranges**: ตัวแปรแต่ละประเภทอยู่ใน address range ไหน?
+   = SRAM อยู่ช่วง 0x3FFB0000 - 0x40000000 , Flash อยู่ช่วง 0x100000 ขึ้นไป
 3. **Memory Usage**: ESP32 มี memory ทั้งหมดเท่าไร และใช้ไปเท่าไร?
+   = ESP32 มี SRAM ~520 KB, Flash ~4 MB (แล้วแต่บอร์ด) , ใช้จริง ≈ 50–70% ของ SRAM และ Flash ขึ้นกับโปรแกรม
 
 ---
 
@@ -596,26 +599,29 @@ void app_main() {
 
 | Test Type | Memory Type | Time (μs) | Ratio vs Sequential |
 |-----------|-------------|-----------|-------------------|
-| Sequential | Internal SRAM | _______ | 1.00x |
-| Random | Internal SRAM | _______ | ____x |
-| Sequential | External Memory | _______ | ____x |
-| Random | External Memory | _______ | ____x |
+| Sequential | Internal SRAM | 	12747 μs| 1.00x |
+| Random | Internal SRAM | 	14108 μs | 	0.94x |
+| Sequential | External Memory | 11984 μs | 1.11x |
+| Random | External Memory | 13616 μs | 1.14x|
 
 **Table 3.2: Stride Access Performance**
 
 | Stride Size | Time (μs) | Ratio vs Stride 1 |
 |-------------|-----------|------------------|
-| 1 | _______ | 1.00x |
-| 2 | _______ | ____x |
-| 4 | _______ | ____x |
-| 8 | _______ | ____x |
-| 16 | _______ | ____x |
+| 1 | 11693 μs | 1.00x |
+| 2 | 5889 μs | 0.50x |
+| 4 | 2847 μs | 	0.24x |
+| 8 | 1577 μs | 	0.13x |
+| 16 | 	756 μs | 0.06x |
 
 ### คำถามวิเคราะห์
 
 1. **Cache Efficiency**: ทำไม sequential access เร็วกว่า random access?
+   = เพราะ sequential access ดึงข้อมูลต่อเนื่อง cache โหลดล่วงหน้าได้
 2. **Memory Hierarchy**: ความแตกต่างระหว่าง internal SRAM และ external memory คืออะไร?
+   = internal SRAM อยู่ใน chip เข้าถึงเร็วกว่า external memory ที่ต้องสื่อสารผ่าน bus ภายนอก
 3. **Stride Patterns**: stride size ส่งผลต่อ performance อย่างไร?
+   = stride ยิ่งใหญ่ access ยิ่งห่าง cache miss มาก → performance ลดลง
 
 ---
 
@@ -842,25 +848,28 @@ void app_main() {
 
 | Metric | Core 0 (PRO_CPU) | Core 1 (APP_CPU) |
 |--------|-------------------|-------------------|
-| Total Iterations | _______ | _______ |
-| Average Time per Iteration (μs) | _______ | _______ |
-| Total Execution Time (ms) | _______ | _______ |
-| Task Completion Rate | _______ | _______ |
+| Total Iterations | 	100 000 | 	100 000 |
+| Average Time per Iteration (μs) | 12.4 | 	12.0 |
+| Total Execution Time (ms) | 	1240 | 1200 |
+| Task Completion Rate | 	100 | 	100 |
 
 **Table 4.2: Inter-Core Communication**
 
 | Metric | Value |
 |--------|-------|
-| Messages Sent | _______ |
-| Messages Received | _______ |
-| Average Latency (μs) | _______ |
-| Queue Overflow Count | _______ |
+| Messages Sent | 500 |
+| Messages Received | 500 |
+| Average Latency (μs) | 35 |
+| Queue Overflow Count | 0|
 
 ### คำถามวิเคราะห์
 
 1. **Core Specialization**: จากผลการทดลอง core ไหนเหมาะกับงานประเภทใด?
+   = Core 0 เหมาะกับงานระบบ (OS, Wi-Fi) ส่วน Core 1 เหมาะกับงานประมวลผลทั่วไป
 2. **Communication Overhead**: inter-core communication มี overhead เท่าไร?
+   = มี overhead เล็กน้อยจากการส่งข้อมูลผ่าน queue หรือ shared memory
 3. **Load Balancing**: การกระจายงานระหว่าง cores มีประสิทธิภาพหรือไม่?
+   = ถ้าแบ่งงานเหมาะสม ประสิทธิภาพดีขึ้น แต่ถ้าไม่สมดุล core หนึ่งอาจทำงานหนักกว่าอีก core
 
 ---
 
@@ -874,9 +883,9 @@ void app_main() {
 ### แบบฟอร์มส่งงาน
 
 **ข้อมูลนักศึกษา:**
-- ชื่อ: _________________________________
-- รหัสนักศึกษา: _______________________
-- วันที่ทำการทดลอง: ___________________
+- ชื่อ: สุวิมล ศรีประไหม
+- รหัสนักศึกษา: 67030249
+- วันที่ทำการทดลอง: 31/10/2568
 
 **Checklist การทดลอง:**
 - [ ] Environment setup สำเร็จ (ต่อเนื่องจากสัปดาห์ที่ 4)
@@ -895,13 +904,13 @@ void app_main() {
 
 **คำถามเพิ่มเติม:**
 1. เปรียบเทียบประสบการณ์การใช้ Docker ในสัปดาห์นี้กับสัปดาห์ที่ 4:
-   _________________________________________________
+   คล้ายๆกัน แต่ยากกว่า
 
 2. สิ่งที่เรียนรู้เพิ่มเติมเกี่ยวกับ ESP32 architecture:
-   _________________________________________________
+   ได้รู้การเรียนรู้ที่ลึกขึ้นและมีอะไรให้ทำมากขึ้น
 
 3. ความท้าทายที่พบในการทำ architecture analysis:
-   _________________________________________________
+   ทุกหัวข้อท้าทายหมดค่ะ
 
 ---
 
